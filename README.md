@@ -1,0 +1,2 @@
+# Noten
+This projects serves as a help for school grades. It is used to give and record school grades. With the software you will have an easy way to keep and access your grades in a safe place. It will help keep a good overview over them.
