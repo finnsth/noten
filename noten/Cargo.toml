@@ -1,0 +1,17 @@
+[package]
+name = "noten"
+version = "0.2.0"
+authors = ["Maciej Zielinski <maciek.s.zielinski@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+cep47 = { git="https://github.com/casper-ecosystem/casper-nft-cep47", branch="mcask" }
+casper-contract = "1.4.4"
+casper-types = "1.5.0"
+
+[[bin]]
+name = "noten"
+path = "src/noten.rs"
+bench = false
+doctest = false
+test = false

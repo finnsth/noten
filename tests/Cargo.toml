@@ -1,0 +1,24 @@
+[package]
+name = "tests"
+version = "0.9.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cep47 = { git="https://github.com/casper-ecosystem/casper-nft-cep47", branch="mcask" }
+casper-contract = "1.4.4"
+casper-engine-test-support = { version = "2.2.0", features = ["test-support"] }
+casper-execution-engine = "2.0.0"
+casper-types = "1.5.0"
+maplit = "*"
+hex = "*"
+rand = "*"
+blake2 = "0.9.1"
+
+[lib]
+name = "tests"
+path = "src/lib.rs"
+
+[features]
+default = ["casper-contract/std", "casper-types/std", "casper-engine-test-support/test-support", "casper-contract/test-support"]
