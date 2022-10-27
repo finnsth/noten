@@ -5,33 +5,60 @@ extern crate alloc;
 
 use alloc::collections::BTreeSet;
 use alloc::{format, vec};
-use alloc::string::String;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::sync::atomic::AtomicU32;
 use casper_contract::contract_api::{runtime, storage};
 use casper_contract::unwrap_or_revert::UnwrapOrRevert;
-use casper_types::{CLType, CLTyped, CLValue, ContractPackageHash, EntryPoint, EntryPointAccess, EntryPoints, EntryPointType, Group, Key, Parameter, runtime_args, RuntimeArgs, URef};
-use cep47::{CEP47, Meta, TokenId};
-use cep47::contract_utils::{ContractContext, OnChainContractStorage};
+use casper_types::{ApiError, CLType, CLTyped, CLValue, ContractPackageHash, EntryPoint, EntryPointAccess, EntryPoints, EntryPointType, Group, Key, Parameter, runtime_args, RuntimeArgs, URef};
+use cep47::{CEP47, Error, Meta, TokenId};
+use cep47::contract_utils::{AdminControl, ContractContext, OnChainContractStorage};
 
 #[derive(Default)]
-struct NFTToken(OnChainContractStorage);
+struct NotenContract(OnChainContractStorage);
 
 
-impl ContractContext<OnChainContractStorage> for NFTToken {
+impl ContractContext<OnChainContractStorage> for NotenContract {
     fn storage(&self) -> &OnChainContractStorage {
         &self.0
     }
 }
 
-impl CEP47<OnChainContractStorage> for NFTToken {}
+impl CEP47<OnChainContractStorage> for NotenContract {}
+impl AdminControl<OnChainContractStorage> for NotenContract {}
 
-impl NFTToken {
+impl NotenContract {
     fn constructor(&mut self, name: String, symbol: String, meta: Meta) {
         CEP47::init(self, name, symbol, meta);
+        AdminControl::init(self);
     }
-    fn grade(&self) {}
-    fn update_grade(&self) {}
-    fn remove_teacher(&self) {}
-    fn add_teacher(&self) {}
+    fn grade(&mut self, student: Key, subject: String, year: u32, grade_type: String, grade: u32) -> Result<Vec<TokenId>, Error> {
+        //Check if the person who is calling this code is a teacher
+        let teacher = runtime::get_caller();
+        let admin = self.is_admin(Key::from(teacher));
+        if !admin {
+            runtime::revert(ApiError::User(20));
+        }
+        let mut meta = Meta::new();
+        meta.insert("subject".to_string(), subject);
+        meta.insert("year" .to_string(), year.to_string());
+        meta.insert("grade_type".to_string(), grade_type);
+        meta.insert("grade".to_string(), grade.to_string());
+        let mut list_of_meta = Vec::<Meta>::new();
+        list_of_meta.push(meta);
+
+        self.mint(student, Option::None, list_of_meta)
+
+
+    }
+    fn update_grade(&self, student: Key, grade: u32, token_id: TokenId) {}
+    fn remove_teacher(&mut self, teacher: Key) {
+        self.disable_admin(teacher)
+    }
+
+    fn add_teacher(&mut self, teacher: Key) {
+        self.add_admin(teacher)
+    }
 }
 
 #[no_mangle]
@@ -39,24 +66,24 @@ fn constructor() {
     let name = runtime::get_named_arg::<String>("name");
     let symbol = runtime::get_named_arg::<String>("symbol");
     let meta = runtime::get_named_arg::<Meta>("meta");
-    NFTToken::default().constructor(name, symbol, meta);
+    NotenContract::default().constructor(name, symbol, meta);
 }
 
 #[no_mangle]
 fn name() {
-    let ret = NFTToken::default().name();
+    let ret = NotenContract::default().name();
     runtime::ret(CLValue::from_t(ret).unwrap_or_revert());
 }
 
 #[no_mangle]
 fn symbol() {
-    let ret = NFTToken::default().symbol();
+    let ret = NotenContract::default().symbol();
     runtime::ret(CLValue::from_t(ret).unwrap_or_revert());
 }
 
 #[no_mangle]
 fn meta() {
-    let ret = NFTToken::default().meta();
+    let ret = NotenContract::default().meta();
     runtime::ret(CLValue::from_t(ret).unwrap_or_revert());
 }
 
@@ -66,34 +93,52 @@ teachers can give grades to students
  */
 #[no_mangle]
 pub extern "C" fn grade() {
-    NFTToken::default().grade();
+    let student:Key  = runtime::get_named_arg("student");
+    let subject:String = runtime::get_named_arg("subject");
+    let year:u32 = runtime::get_named_arg("year");
+    let grade_type:String = runtime::get_named_arg("type");
+    let grade:u32 = runtime::get_named_arg("grade");
+    NotenContract::default().grade(student, subject, year, grade_type, grade);
+    // Parameter::new("student", Key::cl_type()),
+    // Parameter::new("subject", CLType::String),
+    // Parameter::new("year", CLType::U32),
+    // Parameter::new("type", CLType::String),
+    // Parameter::new("grade", CLType::U32),
 }
 /*
 teachers can update/change the grade
  */
 #[no_mangle]
 pub extern "C" fn update_grade() {
-    NFTToken::default().update_grade();
+    let student: Key = runtime::get_named_arg("student");
+    let grade: u32 = runtime::get_named_arg("grade");
+    let token_id:TokenId = runtime::get_named_arg("token_id");
+    NotenContract::default().update_grade(student, grade, token_id);
+    // Parameter::new("student", Key::cl_type()),
+    // Parameter::new("grade", CLType::U32),
+    // Parameter::new("token_id", TokenId::cl_type()),
 }
 /*
 teachers can be removed, so they cant issue grades anymore
  */
 #[no_mangle]
 pub extern "C" fn remove_teacher() {
-    NFTToken::default().remove_teacher();
+    let teacher: Key = runtime::get_named_arg("teacher");
+    NotenContract::default().remove_teacher(teacher);
 }
 /*
 teachers can be added, so they can issue grades
  */
 #[no_mangle]
 pub extern "C" fn add_teacher() {
-    NFTToken::default().add_teacher();
+    let teacher: Key = runtime::get_named_arg("teacher");
+    NotenContract::default().add_teacher(teacher);
 }
 
 #[no_mangle]
 pub extern "C" fn token_meta(){
     let token_id: TokenId = runtime::get_named_arg("token_id");
-    NFTToken::default().token_meta(token_id);
+    NotenContract::default().token_meta(token_id);
 }
 /*
 sets up the smart contract
