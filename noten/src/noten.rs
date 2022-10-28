@@ -67,6 +67,7 @@ fn constructor() {
     let symbol = runtime::get_named_arg::<String>("symbol");
     let meta = runtime::get_named_arg::<Meta>("meta");
     NotenContract::default().constructor(name, symbol, meta);
+    NotenContract::default().add_admin_without_checked(Key::Account(runtime::get_caller()));
 }
 
 #[no_mangle]
@@ -87,7 +88,6 @@ fn meta() {
     runtime::ret(CLValue::from_t(ret).unwrap_or_revert());
 }
 
-
 /*
 teachers can give grades to students
  */
@@ -99,11 +99,6 @@ pub extern "C" fn grade() {
     let grade_type:String = runtime::get_named_arg("type");
     let grade:u32 = runtime::get_named_arg("grade");
     NotenContract::default().grade(student, subject, year, grade_type, grade);
-    // Parameter::new("student", Key::cl_type()),
-    // Parameter::new("subject", CLType::String),
-    // Parameter::new("year", CLType::U32),
-    // Parameter::new("type", CLType::String),
-    // Parameter::new("grade", CLType::U32),
 }
 /*
 teachers can update/change the grade
@@ -186,12 +181,16 @@ pub extern "C" fn call() {
         .unwrap_or_revert();
 
     runtime::put_key(
-        &format!("{}_contract_hash", contract_name),
+        format!("{}_contract_hash", contract_name).as_str(),
         contract_hash.into(),
     );
     runtime::put_key(
-        &format!("{}_contract_hash_wrapped", contract_name),
+        format!("{}_contract_hash_wrapped", contract_name).as_str(),
         storage::new_uref(contract_hash).into(),
+    );
+    runtime::put_key(
+        format!("{}_package_hash_wrapped", contract_name).as_str(),
+        storage::new_uref(package_hash).into(),
     );
 }
 
